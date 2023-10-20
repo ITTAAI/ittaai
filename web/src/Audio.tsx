@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Button} from "@mui/material";
 
-const CHUNK_SIZE = 4096; // 根据实际需要调整这个值
+const CHUNK_SIZE = 1024; // 根据实际需要调整这个值
 
 const Audio: React.FC = () => {
     const [recording, setRecording] = useState<boolean>(false);
@@ -10,7 +10,7 @@ const Audio: React.FC = () => {
     const ws = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        ws.current = new WebSocket("ws://localhost:8080/ws");
+        ws.current = new WebSocket("ws://localhost:8000/ws");
 
         ws.current.onopen = () => {
             console.log("Connected to the WS server");
