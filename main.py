@@ -3,8 +3,9 @@ import shutil  # 导入shutil模块来处理文件删除
 from fastapi.responses import HTMLResponse
 import tempfile
 import subprocess
+import openai
 import os
-
+openai.api_key = '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'
 app = FastAPI()
 
 @app.get("/")
