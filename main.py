@@ -1,11 +1,12 @@
 import subprocess
 import tempfile
-
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+import time
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException,BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse,JSONResponse
 from pydantic import BaseModel
-
+import os
+import openai
 app = FastAPI()
 origins = ["*"]
 
@@ -16,9 +17,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+content='This is what the professor said'
 
-import os
-import openai
 
 openai.api_key = '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'
 
@@ -29,16 +29,14 @@ async def get():
 
 
 # ... 其他代码 ...
-
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    content = ''
-    count = 0
+async def websocket_endpoint(websocket: WebSocket,background_tasks: BackgroundTasks):
     await websocket.accept()
+    os.system('summary.py')
+    global content
     try:
         while True:
             data = await websocket.receive_bytes()
-
             # 检查数据的长度
             if len(data) == 0:
                 await websocket.send_text("0 error: Empty audio data received.")
@@ -54,7 +52,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # 使用vosk-transcriber转录
                 try:
-                    transcribe_command = f'vosk-transcriber --input "{temp_file.name}" --output "{output_txt}"'
+                    transcribe_command = f'vosk-transcriber  --model-name vosk-model-small-en-us-zamia-0.5 --input "{temp_file.name}" --output "{output_txt}"'
                     subprocess.run(transcribe_command, shell=True, check=True)
 
                     # 读取转录后的文件并通过WebSocket发送
@@ -62,21 +60,9 @@ async def websocket_endpoint(websocket: WebSocket):
                         transcription = txt_file.read()
                         await websocket.send_text(transcription)
                         content += transcription
-                        count += 1
-                        if count == 88:
-                            completion = openai.ChatCompletion.create(
-                                model="gpt-3.5-turbo",
-                                messages=[
-                                    {"role": "system", "content": content},
-                                    {"role": "user",
-                                     "content": "Please summarize the content I provide without changing the perspective and keep it within 300 words."}
-                                ]
-                            )
-                            content = (completion.choices[0].message)
-                            count = 0
-                            # 写入更新后的内容到content.txt
-                            with open('content.txt', 'w') as file:
-                                file.write(content)
+                        # 写入更新后的内容到content.txt
+                        with open('content.txt', 'w') as file:
+                            file.write(content)
                 except Exception as e:
                     print(f"Error during transcription: {e}")
                     await websocket.send_text("Error during transcription. Please try again.")
@@ -108,10 +94,26 @@ async def submit_form(data: FormData):
     else:
         return {"error": "Invalid service selected"}
 
-
-# 处理GPT-3服务的函数
-async def handle_gpt_service(q: str, content: str):
+@app.get("/get_summary")
+async def get_summary():
     try:
+        with open("summary.txt", "r", encoding="utf-8") as file:
+            content = file.read()
+        return JSONResponse(content={"summary": content})
+    except FileNotFoundError:
+        return JSONResponse(content={"error": "File not found"}, status_code=404)
+
+# 运行应用
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)
+# 处理GPT-3服务的函数
+async def handle_gpt_service(q: str):
+    try:
+        # 从content.txt中读取内容
+        with open("content.txt", "r", encoding="utf-8") as file:
+            content = file.read()
+
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -120,18 +122,17 @@ async def handle_gpt_service(q: str, content: str):
             ],
             max_tokens=100,
         )
-        reply = response.choices[0].message
+        reply = response.choices[0].message['content']  # 获取消息内容
         return {"data": reply}
     except Exception as e:
         return {"error": str(e)}
-
 
 # 需要实现的处理Claude服务的函数
 async def handle_claude_service(q: str, content: str):
     # 构造到云函数的请求
     url = "https://asvx1c.laf.dev/claude-chat"
     q = "this"
-    params = {"question": q, "conversationId": content}  # 如果content是会话ID的话
+    params = {"question": q, "conversationId": 1}  # 如果content是会话ID的话
 
     # 发送异步HTTP GET请求到云函数
     async with httpx.AsyncClient() as client:
