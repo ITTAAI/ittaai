@@ -5,9 +5,8 @@ import tempfile
 import subprocess
 import openai
 import os
-openai.api_key = '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'
 app = FastAPI()
-
+export OPENAI_API_KEY='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'
 @app.get("/")
 async def get():
     return HTMLResponse(html)
