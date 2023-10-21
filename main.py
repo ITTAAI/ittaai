@@ -1,12 +1,13 @@
+import os
 import subprocess
 import tempfile
-import time
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException,BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse,JSONResponse
-from pydantic import BaseModel
-import os
+
 import openai
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
+
 app = FastAPI()
 origins = ["*"]
 
@@ -17,8 +18,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-content='This is what the professor said'
-
+content = 'This is what the professor said'
 
 openai.api_key = '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'
 
@@ -30,8 +30,10 @@ async def get():
 
 # ... 其他代码 ...
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket,background_tasks: BackgroundTasks):
+async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundTasks):
     await websocket.accept()
+    with open("content.txt", "w", encoding="utf-8") as file:
+        file.write('')
     os.system('summary.py')
     global content
     try:
@@ -79,20 +81,21 @@ class FormData(BaseModel):
 @app.post("/submit-form")
 async def submit_form(data: FormData):
     print(f"Received form data: {data}")
-    content = ""
+
     if os.path.exists('content.txt'):
         with open('content.txt', 'r') as file:
             content = file.read()
 
     if data.service == "gpt":
         # 如果用户选择了gpt，我们就调用GPT-3的服务
-        return await handle_gpt_service(data.q, content)
+        return await handle_gpt_service(data.q)
     elif data.service == "claude":
         # 如果用户选择了claude，我们就调用Claude的服务
         # 注意: 你需要实现这个函数!
-        return await handle_claude_service(data.q, content)
+        return await handle_claude_service(data.q)
     else:
         return {"error": "Invalid service selected"}
+
 
 @app.get("/get_summary")
 async def get_summary():
@@ -103,10 +106,14 @@ async def get_summary():
     except FileNotFoundError:
         return JSONResponse(content={"error": "File not found"}, status_code=404)
 
+
 # 运行应用
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
+
 # 处理GPT-3服务的函数
 async def handle_gpt_service(q: str):
     try:
@@ -126,6 +133,7 @@ async def handle_gpt_service(q: str):
         return {"data": reply}
     except Exception as e:
         return {"error": str(e)}
+
 
 # 需要实现的处理Claude服务的函数
 async def handle_claude_service(q: str, content: str):

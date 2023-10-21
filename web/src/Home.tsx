@@ -18,6 +18,7 @@ import {useRecoilValue} from "recoil";
 import {captionState} from "./states/captionState.ts";
 import {useEffect, useRef, useState} from "react";
 import axios from "axios";
+import useSWR from "swr";
 
 const blue = {
     100: '#DAECFF',
@@ -72,12 +73,20 @@ const TextareaAutosize = styled(BaseTextareaAutosize)(
 );
 
 const Home = () => {
+    // @ts-ignore
+    const fetcher = (...args: any[]) => fetch(...args).then((res) => res.json())
     const caption = useRecoilValue(captionState)
     const [value, setValue] = useState('')
     const [gptResult, setGptResult] = useState('')
     const [loading, setLoading] = useState(false)
     const scrollContainerRef = useRef<any>(null);
     const gptResultController = useRef<any>(null)
+
+    const {data, error, isLoading} = useSWR("http://127.0.0.1:8000/get_summary", fetcher, {
+        refreshInterval: 1000,
+    })
+
+    console.log(error, isLoading, data)
 
     useEffect(() => {
         if (scrollContainerRef.current) {
@@ -105,7 +114,7 @@ const Home = () => {
 
             setLoading(false)
             setValue('')
-            setGptResult((prevState) => prevState + res.data.data.content + '\n -- \n')
+            setGptResult((prevState) => prevState + res.data.data + '\n -- \n')
         } catch (e) {
             setLoading(false)
 
@@ -120,38 +129,60 @@ const Home = () => {
                        p: 5,
                        height: '80vh',
                    }}>
-                <Stack spacing={2}
-                       sx={{
-                           height: '100%',
-                       }}>
-                    <Box sx={{
-                        display: 'flex',
-                    }}>
-                        <Button size={"large"}
-                                variant={"contained"}>Detect Audio</Button>
-                    </Box>
-
-                    <Divider/>
-
-                    <Paper
-                        ref={scrollContainerRef}
-                        sx={{
-                            height: '100%',
-                            display: 'grid',
-                            direction: 'column',
-                            overflow: 'auto'
+                <div>
+                    <Stack spacing={2}
+                           sx={{
+                               height: '100%',
+                           }}>
+                        <Box sx={{
+                            display: 'flex',
                         }}>
-                        <TextareaAutosize minRows={10}
-                                          disabled
-                                          sx={{
-                                              width: '95%',
-                                              border: 'none',
-                                          }}
-                                          value={caption.value}
-                        />
-                    </Paper>
-                    <Audio/>
-                </Stack>
+                            <Button size={"large"}
+                                    variant={"contained"}>Detect Audio</Button>
+                        </Box>
+
+                        <Divider/>
+
+                        <Paper
+                            ref={scrollContainerRef}
+                            sx={{
+                                height: '100%',
+                                display: 'grid',
+                                direction: 'column',
+                                overflow: 'auto'
+                            }}>
+                            <TextareaAutosize minRows={10}
+                                              disabled
+                                              sx={{
+                                                  width: '95%',
+                                                  border: 'none',
+                                              }}
+                                              value={caption.value}
+                            />
+                        </Paper>
+                        <Audio/>
+                    </Stack>
+                </div>
+
+                <Box sx={{
+                    mt: 2
+                }}>
+                    <Divider sx={{
+                        mb: 2
+                    }}/>
+                    <Button variant={"outlined"}
+                            color={'secondary'}>
+                        AI Summary
+                    </Button>
+
+                    <TextareaAutosize value={data?.summary}
+                                      minRows={3}
+                                      disabled
+                                      sx={{
+                                          width: '95%',
+                                          border: 'none',
+                                      }}/>
+                </Box>
             </Grid2>
 
             <Grid2 xs={12}
@@ -171,7 +202,7 @@ const Home = () => {
                     }}>
                         <Button size={"large"}
                                 variant={"contained"}>
-                            AI Output
+                            Ask AI
                         </Button>
                     </Box>
 
