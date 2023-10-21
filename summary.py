@@ -29,16 +29,22 @@ def job():
             file.write(summary)
 
         # 将摘要追加到内容文件
-        with open("content.txt", "a", encoding="utf-8") as file:
-            file.write("\n\nSummary:\n" + summary)
+        # 首先，我们读取文件内容并检查其长度
+        with open("content.txt", "r", encoding="utf-8") as file:
+            content = file.read()
+
+        # 如果字符数超过20,000，我们覆盖文件内容为summary
+        if len(content) > 20000:
+            with open("content.txt", "w", encoding="utf-8") as file:
+                file.write(summary)
 
         print("Summary generated and saved.")
 
     except Exception as e:
         print(f"An error occurred: {e}")
-
+time.sleep(30)
 # 安排任务每60秒执行一次
-schedule.every(60).seconds.do(job)
+schedule.every(30).seconds.do(job)
 
 while True:
     schedule.run_pending()
