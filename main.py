@@ -3,10 +3,10 @@ import shutil  # 导入shutil模块来处理文件删除
 from fastapi.responses import HTMLResponse
 import tempfile
 import subprocess
-import openai
-import os
 app = FastAPI()
-export OPENAI_API_KEY='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'
+import os
+import openai
+openai.api_key = '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'
 @app.get("/")
 async def get():
     return HTMLResponse(html)
@@ -42,12 +42,22 @@ async def websocket_endpoint(websocket: WebSocket):
                     with open(output_txt, 'r') as txt_file:
                         transcription = txt_file.read()
                         await websocket.send_text(transcription)
+                        content+=transcription
+                        count+=1
+                        if count==88 :
+                            completion = openai.ChatCompletion.create(
+                                model="gpt-3.5-turbo",
+                                messages=[
+                                    {"role": "system", "content":content},
+                                    {"role": "user","content": "Please summarize the content I provide without changing the perspective and keep it within 300 words."}
 
+                                ]
+                            )
+                            content=(completion.choices[0].message)
+                            count=0
                 except Exception as e:
                     print(f"Error during transcription: {e}")
                     await websocket.send_text("Error during transcription. Please try again.")
 
     except WebSocketDisconnect:
         print("Client disconnected")
-
-# ... 其他代码 ...
