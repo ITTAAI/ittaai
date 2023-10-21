@@ -1,6 +1,8 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {KeyboardVoiceOutlined, MicOffOutlined} from "@mui/icons-material";
 import {IconButton} from "@mui/material";
+import {useRecoilState} from "recoil";
+import {captionState} from "./states/captionState.ts";
 
 const SEND_INTERVAL = 10000; // 每秒发送一次
 
@@ -9,6 +11,8 @@ const Audio: React.FC = () => {
     const mediaRecorder = useRef<MediaRecorder | null>(null);
     const ws = useRef<WebSocket | null>(null);
     const audioChunks = useRef<Blob[]>([]);
+    const [, setCaption] = useRecoilState(captionState)
+
 
     useEffect(() => {
         ws.current = new WebSocket("ws://127.0.0.1:8000/ws");
@@ -20,6 +24,12 @@ const Audio: React.FC = () => {
         ws.current.onerror = (error: Event) => {
             console.error("WebSocket Error:", error);
         };
+
+        ws.current.onmessage = (event: MessageEvent) => {
+            setCaption((prevCaption) => ({
+                value: prevCaption.value + event.data
+            }));
+        }
 
         return () => {
             if (ws.current) {
@@ -73,6 +83,8 @@ const Audio: React.FC = () => {
     const stopRecording = () => {
         if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
             mediaRecorder.current.stop();
+
+            setRecording(false)
         }
     };
 

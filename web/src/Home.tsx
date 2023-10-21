@@ -13,6 +13,10 @@ import {
 import Grid2 from "@mui/material/Unstable_Grid2";
 import {SendOutlined} from "@mui/icons-material";
 import Audio from "./Audio.tsx";
+import {useRecoilValue} from "recoil";
+import {captionState} from "./states/captionState.ts";
+import {useState} from "react";
+import axios from "axios";
 
 const blue = {
     100: '#DAECFF',
@@ -67,6 +71,19 @@ const TextareaAutosize = styled(BaseTextareaAutosize)(
 );
 
 const Home = () => {
+    const caption = useRecoilValue(captionState)
+    const [value, setValue] = useState('')
+    const [gptResult, setGptResult] = useState('')
+
+    const onSend = async () => {
+        const res = await axios.post('http://localhost:8000/submit-form', {
+            service: "gpt",
+            q: value
+        })
+
+        setGptResult((prevState) => prevState + res.data.data.content + '\n')
+    }
+
     return (
         <Grid2 container>
             <Grid2 xs={12}
@@ -100,10 +117,12 @@ const Home = () => {
                                               width: '95%',
                                               border: 'none',
                                           }}
-                                          value={'Hello World'}
+                                          value={caption.value}
                         />
                         <Box sx={{
-                            alignSelf: 'end'
+                            alignSelf: 'end',
+                            position: 'static',
+                            bottom: 0,
                         }}>
                             <Audio/>
                         </Box>
@@ -141,13 +160,25 @@ const Home = () => {
                         bgcolor: 'transparent',
                     }}>
 
+                        <TextareaAutosize minRows={10}
+                                          disabled
+                                          sx={{
+                                              width: '95%',
+                                              border: 'none',
+                                              bgcolor: 'transparent',
+                                          }}
+                                          value={gptResult}
+                        />
+
                         <Box sx={{
                             alignSelf: 'end',
                             width: '100%',
                         }}>
                             <OutlinedInput
+                                value={value}
+                                onChange={(e) => setValue(e.target.value)}
                                 endAdornment={<InputAdornment position="end">
-                                    <IconButton>
+                                    <IconButton onClick={onSend}>
                                         <SendOutlined/>
                                     </IconButton>
                                 </InputAdornment>}
