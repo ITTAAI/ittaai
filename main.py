@@ -63,8 +63,9 @@ async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundT
                         await websocket.send_text(transcription)
                         content += transcription
                         # 写入更新后的内容到content.txt
-                        with open('content.txt', 'w') as file:
+                        with open('content.txt', 'a') as file:
                             file.write(content)
+                        content = ''
                 except Exception as e:
                     print(f"Error during transcription: {e}")
                     await websocket.send_text("Error during transcription. Please try again.")
@@ -127,7 +128,7 @@ async def handle_gpt_service(q: str):
                 {"role": "system", "content": content},
                 {"role": "user", "content": q}
             ],
-            max_tokens=100,
+            max_tokens=500,
         )
         reply = response.choices[0].message['content']  # 获取消息内容
         return {"data": reply}
