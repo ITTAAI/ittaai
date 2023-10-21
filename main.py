@@ -117,10 +117,11 @@ async def handle_gpt_service(q: str, content: str):
             messages=[
                 {"role": "system", "content": content},
                 {"role": "user", "content": q}
-            ]
+            ],
+            max_tokens=100,
         )
         reply = response.choices[0].message
-        return {"GPT-3_response": reply}
+        return {"data": reply}
     except Exception as e:
         return {"error": str(e)}
 
