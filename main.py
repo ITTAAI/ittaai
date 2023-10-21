@@ -32,6 +32,8 @@ async def get():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket,background_tasks: BackgroundTasks):
     await websocket.accept()
+    with open("summary.txt", "w", encoding="utf-8") as file:
+        file.write('')
     os.system('summary.py')
     global content
     try:
