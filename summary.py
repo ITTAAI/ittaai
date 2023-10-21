@@ -1,9 +1,11 @@
 import time
+
 import openai
 import schedule
 
 # 配置您的OpenAI API密钥
-openai.api_key = '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'
+openai.api_key = '<api-secret-token'
+
 
 def job():
     try:
@@ -42,6 +44,8 @@ def job():
 
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
 time.sleep(30)
 # 安排任务每60秒执行一次
 schedule.every(30).seconds.do(job)
