@@ -26,8 +26,10 @@ const Audio: React.FC = () => {
         };
 
         ws.current.onmessage = (event: MessageEvent) => {
+            const cleanedData = event.data.replace(/\n/g, ' '); // 将所有的回车字符替换为一个空格
+
             setCaption((prevCaption) => ({
-                value: prevCaption.value + event.data
+                value: `${prevCaption.value} ${cleanedData}`
             }));
         }
 

@@ -1,6 +1,7 @@
 import {
     Box,
     Button,
+    CircularProgress,
     Divider,
     IconButton,
     InputAdornment,
@@ -15,7 +16,7 @@ import {SendOutlined} from "@mui/icons-material";
 import Audio from "./Audio.tsx";
 import {useRecoilValue} from "recoil";
 import {captionState} from "./states/captionState.ts";
-import {useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import axios from "axios";
 
 const blue = {
@@ -74,14 +75,41 @@ const Home = () => {
     const caption = useRecoilValue(captionState)
     const [value, setValue] = useState('')
     const [gptResult, setGptResult] = useState('')
+    const [loading, setLoading] = useState(false)
+    const scrollContainerRef = useRef<any>(null);
+    const gptResultController = useRef<any>(null)
+
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            const container = scrollContainerRef.current;
+            container.scrollTop = container.scrollHeight;
+        }
+    }, [caption.value]);
+
+
+    useEffect(() => {
+        if (gptResultController.current) {
+            const container = gptResultController.current;
+            container.scrollTop = container.scrollHeight;
+        }
+    }, [gptResult]);
 
     const onSend = async () => {
-        const res = await axios.post('http://localhost:8000/submit-form', {
-            service: "gpt",
-            q: value
-        })
+        setLoading(true)
 
-        setGptResult((prevState) => prevState + res.data.data.content + '\n')
+        try {
+            const res = await axios.post('http://localhost:8000/submit-form', {
+                service: "gpt",
+                q: value
+            })
+
+            setLoading(false)
+            setValue('')
+            setGptResult((prevState) => prevState + res.data.data.content + '\n -- \n')
+        } catch (e) {
+            setLoading(false)
+
+        }
     }
 
     return (
@@ -105,12 +133,14 @@ const Home = () => {
 
                     <Divider/>
 
-                    <Paper sx={{
-                        height: '100%',
-                        display: 'grid',
-                        direction: 'column',
-                        overflow: 'auto'
-                    }}>
+                    <Paper
+                        ref={scrollContainerRef}
+                        sx={{
+                            height: '100%',
+                            display: 'grid',
+                            direction: 'column',
+                            overflow: 'auto'
+                        }}>
                         <TextareaAutosize minRows={10}
                                           disabled
                                           sx={{
@@ -119,14 +149,8 @@ const Home = () => {
                                           }}
                                           value={caption.value}
                         />
-                        <Box sx={{
-                            alignSelf: 'end',
-                            position: 'static',
-                            bottom: 0,
-                        }}>
-                            <Audio/>
-                        </Box>
                     </Paper>
+                    <Audio/>
                 </Stack>
             </Grid2>
 
@@ -153,12 +177,14 @@ const Home = () => {
 
                     <Divider/>
 
-                    <Paper sx={{
-                        height: '100%',
-                        display: 'grid',
-                        direction: 'column',
-                        bgcolor: 'transparent',
-                    }}>
+                    <Paper
+                        ref={gptResultController}
+                        sx={{
+                            height: '100%',
+                            display: 'grid',
+                            direction: 'column',
+                            bgcolor: 'transparent',
+                        }}>
 
                         <TextareaAutosize minRows={10}
                                           disabled
@@ -169,24 +195,23 @@ const Home = () => {
                                           }}
                                           value={gptResult}
                         />
-
-                        <Box sx={{
-                            alignSelf: 'end',
-                            width: '100%',
-                        }}>
-                            <OutlinedInput
-                                value={value}
-                                onChange={(e) => setValue(e.target.value)}
-                                endAdornment={<InputAdornment position="end">
-                                    <IconButton onClick={onSend}>
-                                        <SendOutlined/>
-                                    </IconButton>
-                                </InputAdornment>}
-                                sx={{
-                                    width: '100%',
-                                }}/>
-                        </Box>
                     </Paper>
+                    <OutlinedInput
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        endAdornment={<InputAdornment position="end">
+                            {!loading ?
+                                <IconButton onClick={onSend}
+                                            onKeyPress={onSend}>
+                                    <SendOutlined/>
+                                </IconButton>
+                                :
+                                <CircularProgress/>
+                            }
+                        </InputAdornment>}
+                        sx={{
+                            width: '100%',
+                        }}/>
                 </Stack>
             </Grid2>
         </Grid2>
