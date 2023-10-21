@@ -6,7 +6,7 @@ import subprocess
 app = FastAPI()
 import os
 import openai
-openai.api_key = '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'
+#openai.api_key = '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'
 @app.get("/")
 async def get():
     return HTMLResponse(html)
@@ -102,6 +102,7 @@ async def handle_gpt_service(q: str, content: str):
 async def handle_claude_service(q: str, content: str):
     # 构造到云函数的请求
     url = "https://asvx1c.laf.dev/claude-chat"
+    q="this"
     params = {"question": q, "conversationId": content}  # 如果content是会话ID的话
 
     # 发送异步HTTP GET请求到云函数
