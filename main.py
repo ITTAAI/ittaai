@@ -1,23 +1,39 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-import shutil  # 导入shutil模块来处理文件删除
-from fastapi.responses import HTMLResponse
-import tempfile
 import subprocess
+import tempfile
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+
 app = FastAPI()
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 import os
 import openai
-#openai.api_key = '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'
+
+openai.api_key = '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'
+
+
 @app.get("/")
 async def get():
-    return HTMLResponse(html)
+    return HTMLResponse('')
+
 
 # ... 其他代码 ...
 
 @app.websocket("/ws")
-
 async def websocket_endpoint(websocket: WebSocket):
     content = ''
-    count=0
+    count = 0
     await websocket.accept()
     try:
         while True:
@@ -45,14 +61,15 @@ async def websocket_endpoint(websocket: WebSocket):
                     with open(output_txt, 'r') as txt_file:
                         transcription = txt_file.read()
                         await websocket.send_text(transcription)
-                        content+=transcription
-                        count+=1
+                        content += transcription
+                        count += 1
                         if count == 88:
                             completion = openai.ChatCompletion.create(
                                 model="gpt-3.5-turbo",
                                 messages=[
                                     {"role": "system", "content": content},
-                                    {"role": "user","content": "Please summarize the content I provide without changing the perspective and keep it within 300 words."}
+                                    {"role": "user",
+                                     "content": "Please summarize the content I provide without changing the perspective and keep it within 300 words."}
                                 ]
                             )
                             content = (completion.choices[0].message)
@@ -66,22 +83,31 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         print("Client disconnected")
+
+
+class FormData(BaseModel):
+    q: str
+    service: str
+
+
 @app.post("/submit-form")
-async def submit_form(q: str = Form(...), service: str = Form(...)):
+async def submit_form(data: FormData):
+    print(f"Received form data: {data}")
     content = ""
     if os.path.exists('content.txt'):
         with open('content.txt', 'r') as file:
             content = file.read()
 
-    if service == "gpt":
+    if data.service == "gpt":
         # 如果用户选择了gpt，我们就调用GPT-3的服务
-        return await handle_gpt_service(q, content)
-    elif service == "claude":
+        return await handle_gpt_service(data.q, content)
+    elif data.service == "claude":
         # 如果用户选择了claude，我们就调用Claude的服务
         # 注意: 你需要实现这个函数!
-        return await handle_claude_service(q, content)
+        return await handle_claude_service(data.q, content)
     else:
         return {"error": "Invalid service selected"}
+
 
 # 处理GPT-3服务的函数
 async def handle_gpt_service(q: str, content: str):
@@ -98,11 +124,12 @@ async def handle_gpt_service(q: str, content: str):
     except Exception as e:
         return {"error": str(e)}
 
+
 # 需要实现的处理Claude服务的函数
 async def handle_claude_service(q: str, content: str):
     # 构造到云函数的请求
     url = "https://asvx1c.laf.dev/claude-chat"
-    q="this"
+    q = "this"
     params = {"question": q, "conversationId": content}  # 如果content是会话ID的话
 
     # 发送异步HTTP GET请求到云函数
