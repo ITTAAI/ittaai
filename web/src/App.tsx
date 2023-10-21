@@ -1,6 +1,7 @@
-import Audio from "./Audio.tsx";
-import {ThemeProvider} from "@mui/material";
+import {Box, Divider, ThemeProvider} from "@mui/material";
 import {appTheme} from "./theme/app.theme.ts";
+import Header from "./components/Header.tsx";
+import Home from "./Home.tsx";
 
 
 function App() {
@@ -8,7 +9,17 @@ function App() {
     return (
         <>
             <ThemeProvider theme={appTheme}>
-                <Audio/>
+                <Header/>
+                <Divider/>
+
+                <Box sx={{
+                    my: 2,
+                    mx: 2
+                }}>
+                    <Home></Home>
+                </Box>
+
+                {/*<Audio/>*/}
             </ThemeProvider>
         </>
     )
