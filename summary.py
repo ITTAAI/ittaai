@@ -3,7 +3,7 @@ import openai
 import schedule
 
 # 配置您的OpenAI API密钥
-openai.api_key = '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'
+openai.api_key = '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'
 
 def job():
     try:
