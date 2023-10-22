@@ -20,7 +20,7 @@ app.add_middleware(
 )
 content = 'This is what the professor said'
 
-openai.api_key = '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'
+openai.api_key = '<api-secret-token'
 
 
 @app.get("/")
@@ -34,7 +34,8 @@ async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundT
     await websocket.accept()
     with open("summary.txt", "w", encoding="utf-8") as file:
         file.write('')
-    os.system('summary.py')
+    with open("content.txt", "w", encoding="utf-8") as file:
+        file.write('')
     global content
     try:
         while True:
