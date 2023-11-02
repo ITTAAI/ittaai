@@ -4,7 +4,7 @@ import openai
 import schedule
 
 # 配置您的OpenAI API密钥
-openai.api_key = '<api-secret-token'
+openai.api_key = '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'
 
 
 def job():
@@ -36,7 +36,7 @@ def job():
             content = file.read()
 
         # 如果字符数超过20,000，我们覆盖文件内容为summary
-        if len(content) > 20000:
+        if len(content) > 10000:
             with open("content.txt", "w", encoding="utf-8") as file:
                 file.write(summary)
 
@@ -46,10 +46,11 @@ def job():
         print(f"An error occurred: {e}")
 
 
-time.sleep(30)
+time.sleep(300)
 # 安排任务每60秒执行一次
-schedule.every(30).seconds.do(job)
+schedule.every(300).seconds.do(job)
 
 while True:
     schedule.run_pending()
     time.sleep(1)
+ç

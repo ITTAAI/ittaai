@@ -1,13 +1,13 @@
 import os
 import subprocess
 import tempfile
-
 import openai
+import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from vosk import Model, KaldiRecognizer, SetLogLevel
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
-
 app = FastAPI()
 origins = ["*"]
 
@@ -20,9 +20,9 @@ app.add_middleware(
 )
 content = 'This is what the professor said'
 
-openai.api_key = '<api-secret-token'
+openai.api_key = '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'
 
-
+model = Model(lang="vosk-model-en-us-0.42-gigaspeech")
 @app.get("/")
 async def get():
     return HTMLResponse('')
@@ -32,6 +32,7 @@ async def get():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundTasks):
     await websocket.accept()
+
     with open("summary.txt", "w", encoding="utf-8") as file:
         file.write('')
     with open("content.txt", "w", encoding="utf-8") as file:
@@ -55,7 +56,7 @@ async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundT
 
                 # 使用vosk-transcriber转录
                 try:
-                    transcribe_command = f'vosk-transcriber  --model-name vosk-model-small-en-us-zamia-0.5 --input "{temp_file.name}" --output "{output_txt}"'
+                    transcribe_command = f'vosk-transcriber  --model-name vosk-model-en-us-0.42-gigaspeech --input "{temp_file.name}" --output "{output_txt}"'
                     subprocess.run(transcribe_command, shell=True, check=True)
 
                     # 读取转录后的文件并通过WebSocket发送
@@ -122,20 +123,29 @@ async def handle_gpt_service(q: str):
         # 从content.txt中读取内容
         with open("content.txt", "r", encoding="utf-8") as file:
             content = file.read()
+        try:
+            reply = await call_gpt_async(content, q)
+            return {"data": reply}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        return {"error": str(e)}
 
-        response = openai.ChatCompletion.create(
+async def call_gpt_async(content: str, q: str):
+    loop = asyncio.get_running_loop()
+    # 将同步的 openai 调用包装到线程池中运行
+    response = await loop.run_in_executor(
+        None,  # None 默认使用 ThreadPoolExecutor
+        lambda: openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": content},
                 {"role": "user", "content": q}
             ],
-            max_tokens=500,
+            max_tokens=2000,
         )
-        reply = response.choices[0].message['content']  # 获取消息内容
-        return {"data": reply}
-    except Exception as e:
-        return {"error": str(e)}
-
+    )
+    return response.choices[0].message['content']
 
 # 需要实现的处理Claude服务的函数
 async def handle_claude_service(q: str, content: str):

@@ -4,7 +4,7 @@ import {IconButton} from "@mui/material";
 import {useRecoilState} from "recoil";
 import {captionState} from "./states/captionState.ts";
 
-const SEND_INTERVAL = 10000; // 每秒发送一次
+const SEND_INTERVAL = 15000; // 每秒发送一次
 
 const Audio: React.FC = () => {
     const [recording, setRecording] = useState<boolean>(false);
@@ -15,7 +15,7 @@ const Audio: React.FC = () => {
 
 
     useEffect(() => {
-        ws.current = new WebSocket("ws://127.0.0.1:8000/ws");
+        ws.current = new WebSocket("ws://localhost:8000/ws");
 
         ws.current.onopen = () => {
             console.log("Connected to the WS server");
