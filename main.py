@@ -22,7 +22,7 @@ content = 'This is what the professor said'
 
 openai.api_key = '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'
 
-model = Model(lang="vosk-model-en-us-0.42-gigaspeech")
+
 @app.get("/")
 async def get():
     return HTMLResponse('')
@@ -56,7 +56,7 @@ async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundT
 
                 # 使用vosk-transcriber转录
                 try:
-                    transcribe_command = f'vosk-transcriber  --model-name vosk-model-en-us-0.42-gigaspeech --input "{temp_file.name}" --output "{output_txt}"'
+                    transcribe_command = f'vosk-transcriber  --model-name vosk-model-small-en-us-zamia-0.5 --input "{temp_file.name}" --output "{output_txt}"'
                     subprocess.run(transcribe_command, shell=True, check=True)
 
                     # 读取转录后的文件并通过WebSocket发送
