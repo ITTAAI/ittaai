@@ -1,3 +1,4 @@
+
 import React, {useEffect, useRef, useState} from 'react';
 import {KeyboardVoiceOutlined, MicOffOutlined} from "@mui/icons-material";
 import {IconButton} from "@mui/material";
@@ -15,7 +16,7 @@ const Audio: React.FC = () => {
 
 
     useEffect(() => {
-        ws.current = new WebSocket("ws://localhost:8000/ws");
+       ws.current = new WebSocket("ws://localhost:8000/ws");
 
         ws.current.onopen = () => {
             console.log("Connected to the WS server");
@@ -32,7 +33,10 @@ const Audio: React.FC = () => {
                 value: `${prevCaption.value} ${cleanedData}`
             }));
         }
-
+        ws.current.onclose = (event) => {
+            console.log(`WebSocket closed: ${event.code} ${event.reason}`);
+            // Reconnect logic or other handling can go here
+        };
         return () => {
             if (ws.current) {
                 ws.current.close();

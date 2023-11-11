@@ -8,6 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from vosk import Model, KaldiRecognizer, SetLogLevel
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
+import logging
+
+# 配置日志记录器
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 app = FastAPI()
 origins = ["*"]
 
@@ -30,9 +35,9 @@ async def get():
 
 # ... 其他代码 ...
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundTasks):
+async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-
+    # model = Model(lang="en-us")
     with open("summary.txt", "w", encoding="utf-8") as file:
         file.write('')
     with open("content.txt", "w", encoding="utf-8") as file:
@@ -71,9 +76,10 @@ async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundT
                 except Exception as e:
                     print(f"Error during transcription: {e}")
                     await websocket.send_text("Error during transcription. Please try again.")
-
     except WebSocketDisconnect:
         print("Client disconnected")
+    except Exception as e:
+        print(e)
 
 
 class FormData(BaseModel):

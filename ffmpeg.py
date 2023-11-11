@@ -4,26 +4,26 @@ import subprocess
 import sys
 
 from vosk import Model, KaldiRecognizer, SetLogLevel
+def vosk_ffmpeg ():
+    SAMPLE_RATE = 16000
 
-SAMPLE_RATE = 16000
+    SetLogLevel(0)
 
-SetLogLevel(0)
 
-model = Model(lang="en-us")
-rec = KaldiRecognizer(model, SAMPLE_RATE)
+    rec = KaldiRecognizer(model, SAMPLE_RATE)
 
-with subprocess.Popen(["ffmpeg", "-loglevel", "quiet", "-i",
-                            sys.argv[1],
-                            "-ar", str(SAMPLE_RATE) , "-ac", "1", "-f", "s16le", "-"],
-                            stdout=subprocess.PIPE) as process:
+    with subprocess.Popen(["ffmpeg", "-loglevel", "quiet", "-i",
+                                sys.argv[1],
+                                "-ar", str(SAMPLE_RATE) , "-ac", "1", "-f", "s16le", "-"],
+                                stdout=subprocess.PIPE) as process:
 
-    while True:
-        data = process.stdout.read(4000)
-        if len(data) == 0:
-            break
-        if rec.AcceptWaveform(data):
-            print(rec.Result())
-        else:
-            print(rec.PartialResult())
+        while True:
+            data = process.stdout.read(4000)
+            if len(data) == 0:
+                break
+            if rec.AcceptWaveform(data):
+                print(rec.Result())
+            else:
+                print(rec.PartialResult())
 
-    print(rec.FinalResult())
+        return rec.FinalResult()
