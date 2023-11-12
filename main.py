@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import openai
 import asyncio
+import seperate
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from vosk import Model, KaldiRecognizer, SetLogLevel
@@ -37,7 +38,7 @@ async def get():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    # model = Model(lang="en-us")
+    model = Model(lang="en-us")
     with open("summary.txt", "w", encoding="utf-8") as file:
         file.write('')
     with open("content.txt", "w", encoding="utf-8") as file:
@@ -171,3 +172,11 @@ async def handle_claude_service(q: str, content: str):
     # 解析并返回结果
     result = response.json()
     return {"Claude_response": result.get("msg", "")}
+
+@app.get("/")
+async def summary_seperat():
+    loop = asyncio.get_running_loop()
+    # 在线程池中运行阻塞函数
+    await loop.run_in_executor(None, seperate.run_conversation())
+    # 阻塞函数完成后返回响应
+
