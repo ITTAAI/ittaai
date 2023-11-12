@@ -8,10 +8,6 @@ client = OpenAI(api_key='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')
 # In production, this could be your backend API or an external API
 # 定义全局变量来存储文件名
 content=''
-file_names = []
-with open('content.txt','r') as file:
-    content = file.read()
-
 def write_to_file(filename, content):
     """
     This function creates a new text file with the given name, writes the provided content to it,
@@ -45,15 +41,17 @@ def append_to_file(filename, content):
 
 
 
-def run_conversation():
+def run_conversation(file_names = []):
     # Step 1: send the conversation and available functions to the model
-    global file_names
     global content
+    with open('content.txt', 'r') as file:
+        content = file.read()
     file_names.append("label_axes")
     file_names.append("The onset of sustained economic growth with the Industrial Revolution")
     json_string = json.dumps(file_names)
     print("this current file_name list is "+json_string)
-
+    with open('content.txt', 'r') as file:
+        content = file.read()
     messages = [
         {
             "role":"user","content":"this current file_name list is "+json_string
@@ -117,10 +115,12 @@ def run_conversation():
             "write_to_file": write_to_file,
             "append_to_file":append_to_file,
         }
-        function_name = tool_call.function.name
-        function_to_call = available_functions[function_name]
-        function_args = json.loads(tool_call.function.arguments)
-        function_to_call(
-            filename=function_args.get("filename"),
-            content=content
-        )
+        for tool_call in tools_calls:
+            function_name = tool_call.function.name
+            function_to_call = available_functions[function_name]
+            function_args = json.loads(tool_call.function.arguments)
+            function_to_call(
+                filename=function_args.get("filename"),
+                content=content
+            )
+    return json.loads(tool_call.function.arguments).get("filename")

@@ -3,20 +3,19 @@ import subprocess
 import tempfile
 import openai
 import asyncio
-import seperate
+import separate
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from vosk import Model, KaldiRecognizer, SetLogLevel
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 import logging
-
 # 配置日志记录器
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 app = FastAPI()
 origins = ["*"]
-
+stop_event = asyncio.Event()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -27,8 +26,6 @@ app.add_middleware(
 content = 'This is what the professor said'
 
 openai.api_key = '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'
-
-
 @app.get("/")
 async def get():
     return HTMLResponse('')
@@ -39,11 +36,14 @@ async def get():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     model = Model(lang="en-us")
-    with open("summary.txt", "w", encoding="utf-8") as file:
-        file.write('')
-    with open("content.txt", "w", encoding="utf-8") as file:
-        file.write('')
+    #with open("content.txt", "w", encoding="utf-8") as file:
+    #    file.write('')
     global content
+    global file_names
+    file_names=[]
+    # 清除停止事件并重启后台分类任务
+    stop_event.clear()
+    asyncio.create_task(summary_separate())
     try:
         while True:
             data = await websocket.receive_bytes()
@@ -59,17 +59,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # 定义输出文件的路径和名称
                 output_txt = temp_file.name.replace(".wav", ".txt")
-
                 # 使用vosk-transcriber转录
                 try:
                     transcribe_command = f'vosk-transcriber  --model-name vosk-model-small-en-us-zamia-0.5 --input "{temp_file.name}" --output "{output_txt}"'
                     subprocess.run(transcribe_command, shell=True, check=True)
-
                     # 读取转录后的文件并通过WebSocket发送
                     with open(output_txt, 'r') as txt_file:
                         transcription = txt_file.read()
                         await websocket.send_text(transcription)
-                        content += transcription
+                        content = transcription
                         # 写入更新后的内容到content.txt
                         with open('content.txt', 'a') as file:
                             file.write(content)
@@ -79,6 +77,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_text("Error during transcription. Please try again.")
     except WebSocketDisconnect:
         print("Client disconnected")
+        stop_event.set()
     except Exception as e:
         print(e)
 
@@ -174,9 +173,10 @@ async def handle_claude_service(q: str, content: str):
     return {"Claude_response": result.get("msg", "")}
 
 @app.get("/")
-async def summary_seperat():
+async def summary_separate():
     loop = asyncio.get_running_loop()
     # 在线程池中运行阻塞函数
-    await loop.run_in_executor(None, seperate.run_conversation())
-    # 阻塞函数完成后返回响应
-
+    await asyncio.sleep(3)
+    while not stop_event.is_set():
+        file_names.append(await loop.run_in_executor(None, separate.run_conversation(file_names)))
+        await asyncio.sleep(60*3)
