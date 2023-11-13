@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import openai
 import asyncio
+import test
 import separate
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,7 +31,7 @@ openai.api_key = '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'
 async def get():
     return HTMLResponse('')
 
-
+file_names=[]
 # ... 其他代码 ...
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -69,7 +70,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         await websocket.send_text(transcription)
                         content = transcription
                         # 写入更新后的内容到content.txt
-                        with open('content.txt', 'a') as file:
+                        with open('text_content/content.txt', 'a') as file:
                             file.write(content)
                         content = ''
                 except Exception as e:
@@ -176,7 +177,8 @@ async def handle_claude_service(q: str, content: str):
 async def summary_separate():
     loop = asyncio.get_running_loop()
     # 在线程池中运行阻塞函数
+    global file_names
     await asyncio.sleep(3)
     while not stop_event.is_set():
-        file_names.append(await loop.run_in_executor(None, separate.run_conversation(file_names)))
-        await asyncio.sleep(60*3)
+        file_names.append(await loop.run_in_executor(None, separate.run_conversation))
+        await asyncio.sleep(10)
