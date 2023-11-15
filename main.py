@@ -11,6 +11,7 @@ from vosk import Model, KaldiRecognizer, SetLogLevel
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 import logging
+
 # 配置日志记录器
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -26,22 +27,33 @@ app.add_middleware(
 )
 content = 'This is what the professor said'
 
-openai.api_key = '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'
+api_key = ''
+@app.on_event("startup")
+async def startup_event():
+    global api_key
+    api_key = load_api_key("OPENAI_API_KEY.txt")
+
+
 @app.get("/")
 async def get():
     return HTMLResponse('')
 
-file_names=[]
+
+file_names = []
+
+
 # ... 其他代码 ...
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     model = Model(lang="en-us")
-    #with open("content.txt", "w", encoding="utf-8") as file:
+    global api_key
+    print(api_key)
+    # with open("content.txt", "w", encoding="utf-8") as file:
     #    file.write('')
     global content
     global file_names
-    file_names=[]
+    file_names = []
     # 清除停止事件并重启后台分类任务
     stop_event.clear()
     asyncio.create_task(summary_separate())
@@ -138,6 +150,7 @@ async def handle_gpt_service(q: str):
     except Exception as e:
         return {"error": str(e)}
 
+
 async def call_gpt_async(content: str, q: str):
     loop = asyncio.get_running_loop()
     # 将同步的 openai 调用包装到线程池中运行
@@ -153,6 +166,7 @@ async def call_gpt_async(content: str, q: str):
         )
     )
     return response.choices[0].message['content']
+
 
 # 需要实现的处理Claude服务的函数
 async def handle_claude_service(q: str, content: str):
@@ -173,6 +187,7 @@ async def handle_claude_service(q: str, content: str):
     result = response.json()
     return {"Claude_response": result.get("msg", "")}
 
+
 @app.get("/")
 async def summary_separate():
     loop = asyncio.get_running_loop()
@@ -180,5 +195,10 @@ async def summary_separate():
     global file_names
     await asyncio.sleep(3)
     while not stop_event.is_set():
-        file_names.append(await loop.run_in_executor(None, separate.run_conversation))
+        file_names.append(await loop.run_in_executor(None, separate.run_conversation,api_key))
         await asyncio.sleep(10)
+
+
+def load_api_key(file_path):
+    with open(file_path, 'r') as file:
+        return file.read().strip()
