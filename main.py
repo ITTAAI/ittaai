@@ -1,9 +1,8 @@
 import os
 import subprocess
 import tempfile
-import openai
+import ask_question
 import asyncio
-import test
 import separate
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -153,17 +152,9 @@ async def handle_gpt_service(q: str):
 
 async def call_gpt_async(content: str, q: str):
     loop = asyncio.get_running_loop()
+    global api_key
     # 将同步的 openai 调用包装到线程池中运行
-    response = await loop.run_in_executor(
-        None,  # None 默认使用 ThreadPoolExecutor
-        lambda: openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": content},
-                {"role": "user", "content": q}
-            ],
-            max_tokens=2000,
-        )
+    response = await loop.run_in_executor(None,ask_question.ask, q,api_key
     )
     return response.choices[0].message['content']
 
