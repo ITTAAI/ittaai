@@ -10,6 +10,9 @@ from vosk import Model, KaldiRecognizer, SetLogLevel
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 import logging
+import httpx
+import vosk_ffmpeg
+import json
 
 # 配置日志记录器
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -55,7 +58,7 @@ async def websocket_endpoint(websocket: WebSocket):
     file_names = []
     # 清除停止事件并重启后台分类任务
     stop_event.clear()
-    asyncio.create_task(summary_separate())
+    # asyncio.create_task(summary_separate())
     try:
         while True:
             data = await websocket.receive_bytes()
@@ -73,15 +76,20 @@ async def websocket_endpoint(websocket: WebSocket):
                 output_txt = temp_file.name.replace(".wav", ".txt")
                 # 使用vosk-transcriber转录
                 try:
-                    transcribe_command = f'vosk-transcriber  --model-name vosk-model-small-en-us-zamia-0.5 --input "{temp_file.name}" --output "{output_txt}"'
-                    subprocess.run(transcribe_command, shell=True, check=True)
+                    transcribe=vosk_ffmpeg.vosk_ffmpeg(temp_file.name,model)
+                    transcribe_json = json.loads(transcribe)
+                    transcribe = transcribe_json['text']
+                    with open(output_txt, "w") as file:
+                        file.write(transcribe)
+                    #transcribe_command = f'vosk-transcriber  --model-name vosk-model-small-en-us-zamia-0.5 --input "{temp_file.name}" --output "{output_txt}"'
+                    #subprocess.run(transcribe_command, shell=True, check=True)
                     # 读取转录后的文件并通过WebSocket发送
                     with open(output_txt, 'r') as txt_file:
                         transcription = txt_file.read()
                         await websocket.send_text(transcription)
                         content = transcription
                         # 写入更新后的内容到content.txt
-                        with open('text_content/content.txt', 'a') as file:
+                        with open('content.txt', 'a') as file:
                             file.write(content)
                         content = ''
                 except Exception as e:
