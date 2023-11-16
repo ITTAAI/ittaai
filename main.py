@@ -58,7 +58,7 @@ async def websocket_endpoint(websocket: WebSocket):
     file_names = []
     # 清除停止事件并重启后台分类任务
     stop_event.clear()
-    # asyncio.create_task(summary_separate())
+    asyncio.create_task(summary_separate())
     try:
         while True:
             data = await websocket.receive_bytes()
@@ -192,10 +192,10 @@ async def summary_separate():
     loop = asyncio.get_running_loop()
     # 在线程池中运行阻塞函数
     global file_names
-    await asyncio.sleep(3)
+    await asyncio.sleep(120)
     while not stop_event.is_set():
         file_names.append(await loop.run_in_executor(None, separate.run_conversation,api_key))
-        await asyncio.sleep(10)
+        await asyncio.sleep(300)
 
 
 def load_api_key(file_path):
