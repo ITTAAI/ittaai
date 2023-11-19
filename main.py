@@ -1,18 +1,19 @@
-import os
-import subprocess
-import tempfile
-import ask_question
 import asyncio
-import separate
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from vosk import Model, KaldiRecognizer, SetLogLevel
-from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel
+import json
 import logging
+import os
+import tempfile
+
+import ask_question
 import httpx
 import vosk_ffmpeg
-import json
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
+from vosk import Model
+
+import separate
 
 # 配置日志记录器
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -27,7 +28,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-content = 'This is what the professor said'
 
 api_key = ''
 @app.on_event("startup")
@@ -53,7 +53,6 @@ async def websocket_endpoint(websocket: WebSocket):
     print(api_key)
     # with open("content.txt", "w", encoding="utf-8") as file:
     #    file.write('')
-    global content
     global file_names
     file_names = []
     # 清除停止事件并重启后台分类任务
@@ -81,17 +80,18 @@ async def websocket_endpoint(websocket: WebSocket):
                     transcribe = transcribe_json['text']
                     with open(output_txt, "w") as file:
                         file.write(transcribe)
-                    #transcribe_command = f'vosk-transcriber  --model-name vosk-model-small-en-us-zamia-0.5 --input "{temp_file.name}" --output "{output_txt}"'
-                    #subprocess.run(transcribe_command, shell=True, check=True)
                     # 读取转录后的文件并通过WebSocket发送
                     with open(output_txt, 'r') as txt_file:
                         transcription = txt_file.read()
-                        await websocket.send_text(transcription)
-                        content = transcription
-                        # 写入更新后的内容到content.txt
-                        with open('content.txt', 'a') as file:
-                            file.write(content)
-                        content = ''
+                    await websocket.send_text(transcription)
+                    # 写入更新后的内容到content.txt
+                    with open('content.txt', 'a') as file:
+                        file.write(transcription)
+                    try:
+                        os.remove(temp_file.name)
+                        os.remove(output_txt)
+                    except Exception as e:
+                        print(f"Error during file cleanup: {e}")
                 except Exception as e:
                     print(f"Error during transcription: {e}")
                     await websocket.send_text("Error during transcription. Please try again.")
@@ -142,7 +142,6 @@ if __name__ == "__main__":
 
     uvicorn.run(app, host="0.0.0.0", port=8080)
 
-
 # 处理GPT-3服务的函数
 async def handle_gpt_service(q: str):
     try:
@@ -150,7 +149,7 @@ async def handle_gpt_service(q: str):
         with open("content.txt", "r", encoding="utf-8") as file:
             content = file.read()
         try:
-            reply = await call_gpt_async(content, q)
+            reply = await call_gpt_async(q)
             return {"data": reply}
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
@@ -158,7 +157,7 @@ async def handle_gpt_service(q: str):
         return {"error": str(e)}
 
 
-async def call_gpt_async(content: str, q: str):
+async def call_gpt_async( q: str):
     loop = asyncio.get_running_loop()
     global api_key
     # 将同步的 openai 调用包装到线程池中运行
