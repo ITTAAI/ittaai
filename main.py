@@ -48,7 +48,8 @@ file_names = []
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    model = Model(lang="en-us")
+    model_big= Model(model_name="vosk-model-en-us-0.42-gigaspeech")
+    model_small= Model(model_name="vosk-model-small-en-us-zamia-0.5")
     global api_key
     print(api_key)
     # with open("content.txt", "w", encoding="utf-8") as file:
@@ -75,7 +76,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 output_txt = temp_file.name.replace(".wav", ".txt")
                 # 使用vosk-transcriber转录
                 try:
-                    transcribe=vosk_ffmpeg.vosk_ffmpeg(temp_file.name,model)
+                    transcribe=vosk_ffmpeg.vosk_ffmpeg(temp_file.name,model_big)
                     transcribe_json = json.loads(transcribe)
                     transcribe = transcribe_json['text']
                     with open(output_txt, "w") as file:
