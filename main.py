@@ -51,9 +51,6 @@ async def websocket_endpoint(websocket: WebSocket):
     model_big= Model(model_name="vosk-model-en-us-0.42-gigaspeech")
     model_small= Model(model_name="vosk-model-small-en-us-zamia-0.5")
     global api_key
-    print(api_key)
-    # with open("content.txt", "w", encoding="utf-8") as file:
-    #    file.write('')
     global file_names
     file_names = []
     # 清除停止事件并重启后台分类任务
