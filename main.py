@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import tempfile
-
 import ask_question
 import httpx
 import vosk_ffmpeg
@@ -12,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from vosk import Model
-
+import subprocess
 import separate
 
 # 配置日志记录器
@@ -30,6 +29,8 @@ app.add_middleware(
 )
 
 api_key = ''
+
+
 @app.on_event("startup")
 async def startup_event():
     global api_key
@@ -48,51 +49,64 @@ file_names = []
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    model_big= Model(model_name="vosk-model-en-us-0.42-gigaspeech")
-    model_small= Model(model_name="vosk-model-small-en-us-zamia-0.5")
+    model_big = Model(model_name="vosk-model-en-us-0.42-gigaspeech")
+    model_small = Model(model_name="vosk-model-small-en-us-zamia-0.5")
     global api_key
     global file_names
     file_names = []
     # 清除停止事件并重启后台分类任务
     stop_event.clear()
     asyncio.create_task(summary_separate())
+    datas = []
     try:
         while True:
-            data = await websocket.receive_bytes()
+            datas.append(await websocket.receive_bytes())
             # 检查数据的长度
-            if len(data) == 0:
+            if len(datas[-1]) == 0:
                 await websocket.send_text("0 error: Empty audio data received.")
                 continue  # 继续下一次循环
 
             # 创建一个临时文件来保存音频数据，设置delete为False以保留文件
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-                temp_file.write(data)
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as temp_file:
+                temp_file.write(datas[-1])
                 temp_file.flush()  # 确保所有数据都被写入
-
                 # 定义输出文件的路径和名称
                 output_txt = temp_file.name.replace(".wav", ".txt")
-                # 使用vosk-transcriber转录
                 try:
-                    transcribe=vosk_ffmpeg.vosk_ffmpeg(temp_file.name,model_big)
-                    transcribe_json = json.loads(transcribe)
-                    transcribe = transcribe_json['text']
-                    with open(output_txt, "w") as file:
-                        file.write(transcribe)
-                    # 读取转录后的文件并通过WebSocket发送
-                    with open(output_txt, 'r') as txt_file:
-                        transcription = txt_file.read()
-                    await websocket.send_text(transcription)
-                    # 写入更新后的内容到content.txt
-                    with open('content.txt', 'a') as file:
-                        file.write(transcription)
-                    try:
-                        os.remove(temp_file.name)
-                        os.remove(output_txt)
-                    except Exception as e:
-                        print(f"Error during file cleanup: {e}")
+                    transcribe = vosk_transcriber_small(temp_file, model_small, output_txt)
+                    await websocket.send_text(transcribe)
                 except Exception as e:
                     print(f"Error during transcription: {e}")
                     await websocket.send_text("Error during transcription. Please try again.")
+                # 使用vosk-transcriber转录
+            if (len(datas)==10):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # 将音频数据写入临时文件
+                    file_paths = []
+                    for i, data in enumerate(datas):
+                        temp_file_path = f"{temp_dir}/file{i}.ogg"
+                        with open(temp_file_path, "wb") as f:
+                            f.write(data)
+                        file_paths.append(temp_file_path)
+
+                    # 创建文件列表
+                    files_txt_path = f"{temp_dir}/files.txt"
+                    with open(files_txt_path, 'w') as f:
+                        for file_path in file_paths:
+                            f.write(f"file '{file_path}'\n")
+
+                    # 使用ffmpeg合并音频文件
+                    output_path = f"{temp_dir}/output.ogg"
+                    subprocess.run(
+                        ["ffmpeg", "-f", "concat", "-safe", "0", "-i", files_txt_path, "-c", "copy", output_path])
+                    # 在这里可以进行对output_path指向的合并后的文件的操作
+                    try:
+                        transcribe = vosk_transcriber_small(temp_file, model_big, output_txt)
+                        print(transcribe)
+                    except Exception as e:
+                        print(f"Error during transcription: {e}")
+                        await websocket.send_text("Error during transcription. Please try again.")
+
     except WebSocketDisconnect:
         print("Client disconnected")
         stop_event.set()
@@ -140,6 +154,7 @@ if __name__ == "__main__":
 
     uvicorn.run(app, host="0.0.0.0", port=8080)
 
+
 # 处理GPT-3服务的函数
 async def handle_gpt_service(q: str):
     try:
@@ -155,12 +170,12 @@ async def handle_gpt_service(q: str):
         return {"error": str(e)}
 
 
-async def call_gpt_async( q: str):
+async def call_gpt_async(q: str):
     loop = asyncio.get_running_loop()
     global api_key
     # 将同步的 openai 调用包装到线程池中运行
-    response = await loop.run_in_executor(None,ask_question.ask, q,api_key
-    )
+    response = await loop.run_in_executor(None, ask_question.ask, q, api_key
+                                          )
     return response.choices[0].message['content']
 
 
@@ -191,10 +206,24 @@ async def summary_separate():
     global file_names
     await asyncio.sleep(120)
     while not stop_event.is_set():
-        file_names.append(await loop.run_in_executor(None, separate.run_conversation,api_key))
+        file_names.append(await loop.run_in_executor(None, separate.run_conversation, api_key))
         await asyncio.sleep(300)
 
 
 def load_api_key(file_path):
     with open(file_path, 'r') as file:
         return file.read().strip()
+
+
+# 使用vosk-transcriber转录
+async def vosk_transcriber_small(temp_file, model_name, output_txt):
+    transcribe = vosk_ffmpeg.vosk_ffmpeg(temp_file.name, model_name)
+    transcribe_json = json.loads(transcribe)
+    transcribe = transcribe_json['text']
+    with open(output_txt, "w") as file:
+        file.write(transcribe)
+    # 读取转录后的文件并通过WebSocket发送
+    # 写入更新后的内容到content.txt
+    with open('content.txt', 'a') as file:
+        file.write(transcribe)
+    return transcribe
