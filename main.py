@@ -66,20 +66,20 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_text("0 error: Empty audio data received.")
                 continue  # 继续下一次循环
 
-            # 创建一个临时文件来保存音频数据，设置delete为False以保留文件
+            # 创建一个临时文件来保存音频数据
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as temp_file:
                 temp_file.write(datas[-1])
                 temp_file.flush()  # 确保所有数据都被写入
                 # 定义输出文件的路径和名称
                 output_txt = temp_file.name.replace(".wav", ".txt")
                 try:
-                    transcribe = vosk_transcriber_small(temp_file, model_small, output_txt)
+                    transcribe = vosk_transcriber_small(temp_file, model_small, output_txt,write_to_file=False)
                     await websocket.send_text(transcribe)
                 except Exception as e:
                     print(f"Error during transcription: {e}")
                     await websocket.send_text("Error during transcription. Please try again.")
                 # 使用vosk-transcriber转录
-            if (len(datas)==10):
+            if len(datas) == 10:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     # 将音频数据写入临时文件
                     file_paths = []
@@ -216,7 +216,7 @@ def load_api_key(file_path):
 
 
 # 使用vosk-transcriber转录
-async def vosk_transcriber_small(temp_file, model_name, output_txt):
+async def vosk_transcriber_small(temp_file, model_name, output_txt,write_to_file=True):
     transcribe = vosk_ffmpeg.vosk_ffmpeg(temp_file.name, model_name)
     transcribe_json = json.loads(transcribe)
     transcribe = transcribe_json['text']
@@ -224,6 +224,7 @@ async def vosk_transcriber_small(temp_file, model_name, output_txt):
         file.write(transcribe)
     # 读取转录后的文件并通过WebSocket发送
     # 写入更新后的内容到content.txt
-    with open('content.txt', 'a') as file:
-        file.write(transcribe)
+    if write_to_file:
+        with open('content.txt', 'a') as file:
+            file.write(transcribe)
     return transcribe
